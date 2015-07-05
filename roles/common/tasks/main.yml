@@ -1,0 +1,22 @@
+- name: Gather ec2 facts
+  action: ec2_facts
+
+- name: Ensure up-to-date repos
+  apt: update_cache=yes cache_valid_time=300
+
+- name: Install some packages
+  apt: pkg={{ item }}
+  with_items:
+    - git
+    - htop
+    - curl
+    - vim
+    - zip
+    - unzip
+    - tree
+    - python-software-properties
+
+- name: Get the current time
+  command: date +%Y-%m-%d_%H:%M:%S
+  register: time
+

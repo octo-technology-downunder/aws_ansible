@@ -1,0 +1,91 @@
+---
+- name: Create the VPC
+  local_action:
+    module: ec2_vpc
+    state: present
+    cidr_block: 172.22.0.0/16
+    resource_tags: { "Environment":"Development" }
+    subnets:
+      - cidr: 172.22.1.0/24
+        az: us-east-1a
+        resource_tags: { "Name" : "AnsibleVPC", "Type" : "GroupA" }
+      - cidr: 172.22.2.0/24
+        az: us-east-1b
+        resource_tags: { "Name" : "AnsibleVPC", "Type" : "GroupB" }
+      - cidr: 172.22.3.0/24
+        az: us-east-1d
+        resource_tags: { "Name" : "AnsibleVPC", "Type" : "GroupC" }
+    internet_gateway: True
+    route_tables:
+      - subnets:
+          - 172.22.2.0/24
+          - 172.22.3.0/24
+        routes:
+          - dest: 0.0.0.0/0
+            gw: igw
+      - subnets:
+          - 172.22.1.0/24
+        routes:
+          - dest: 0.0.0.0/0
+            gw: igw
+    region: us-east-1
+    wait: true
+  register: vpc
+
+- name: Provision VPC Security Group
+  local_action:
+    module: ec2_group
+    state: present
+    name: ansible_sg
+    description: "Ansible Security Group: ssh,http,https"
+    vpc_id: "{{ vpc.vpc_id }}"
+    region: "{{ aws_region }}"
+    rules:
+      - proto: tcp
+        from_port: 80
+        to_port: 80
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 22
+        to_port: 22
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 443
+        to_port: 443
+        cidr_ip: 0.0.0.0/0
+
+- name: Provision EC2 instances
+  ec2:
+    region: "{{ aws_region }}"
+    group: ansible_sg
+    key_name: "{{ aws_keypair }}"
+    instance_type: "{{ aws_instanceType }}"
+    image: "{{ aws_image }}"
+    exact_count: "{{ item.value.count }}"
+    wait: yes
+    wait_timeout: 500
+    vpc_subnet_id: "{{ vpc.subnets.1.id }}"
+    assign_public_ip: yes
+    count_tag:
+      Name: "ansible.{{ item.key }}"
+      Ansible_managed: yes
+    instance_tags:
+      Name: "ansible.{{ item.key }}"
+      Ansible_managed: yes
+  with_dict: aws_envs
+  register: ec2_instances
+
+- name: Waiting for SSH
+  wait_for: host="{{ item.1.public_ip }}" port=22 timeout=600 state=started
+  with_subelements:
+     - ec2_instances.results
+     - tagged_instances
+  
+- name: Add new ec2 instances to host group
+  local_action: add_host hostname="{{ item.1.public_ip }}" groupname="launched_{{ item.0.item.key }}" ansible_ssh_private_key_file="{{ aws_private_key }}"
+  with_subelements:
+     - ec2_instances.results
+     - tagged_instances
+     
+- pause: seconds=15
+

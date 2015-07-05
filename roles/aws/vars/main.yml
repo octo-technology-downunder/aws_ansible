@@ -1,0 +1,12 @@
+---
+# ubuntu-trusty-14.04-amd64-server-20150325
+aws_image: ami-d05e75b8
+aws_instanceType: t2.micro
+aws_keypair: era_ec2
+aws_region: us-east-1
+aws_private_key: /Users/erwan/.ssh/era_ec2.cer
+aws_envs:
+  env_a:
+    count: 1
+  env_b:
+    count: 3

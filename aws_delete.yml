@@ -1,0 +1,15 @@
+# ansible-playbook -i inventory_file --private-key=/Users/erwan/.ssh/era_ec2.cer aws_playbook.yml.yml
+
+- name: Delete EC2 instances
+  hosts: security_group_ansible_sg
+  connection: local
+  gather_facts: False
+  tasks:
+  - name: Terminate {{ec2_id}} instance
+    local_action:
+        module: ec2
+        state: 'absent'
+        region: '{{aws_region}}'
+        instance_ids: '{{ec2_id}}'
+
+

@@ -1,0 +1,42 @@
+# ansible-playbook -i inventory_file --private-key=/Users/erwan/.ssh/era_ec2.cer aws_playbook.yml.yml
+
+####################
+# AWS PROVISIONING #
+####################
+
+- hosts: local
+  connection: local
+  gather_facts: false
+  roles:
+    - role: aws
+
+####################
+#       SETUP      #
+####################
+
+- hosts: 
+    - launched_env_a
+    - launched_env_b
+  remote_user: ubuntu
+  sudo: true
+  gather_facts: false
+  roles:
+    - role: common
+
+####################
+#   CUSTOM TASKS   #
+####################
+
+- hosts: launched_env_a
+  remote_user: ubuntu
+  sudo: false
+  gather_facts: false
+  tasks:
+    - command: touch /home/ubuntu/.envtype_A
+
+- hosts: launched_env_b
+  remote_user: ubuntu
+  sudo: false
+  gather_facts: false
+  tasks:
+    - command: touch /home/ubuntu/.envtype_B
